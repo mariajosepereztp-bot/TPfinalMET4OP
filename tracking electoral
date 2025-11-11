@@ -141,14 +141,54 @@ df['Peso'] = df['Peso'].fillna(0)
 df['Peso'] = df['Peso'] / df['Peso'].mean()
 df
 
-#%%
-#Quinto paso: crear nuevas variables / nuevos DFs
-df_mujeres = df[df['Sexo'] == 'Femenino'] #creacion de df filtrado por mujeres a partir del df original
-df_hombres = df[df['Sexo'] == 'Masculino'] #creacion de df filtrado por hombres a partir del df original
+# %%
+#Quinto Paso: pesos por ventana
+bins = [15, 29, 44, 59, 120]
+labels = ['16–29', '30–44', '45–59', '60+']
+df['Grupo_Edad'] = pd.cut(df['Edad'], bins=bins, labels=labels)
+poblacion = pd.DataFrame({
+    'Sexo': ['Masculino','Masculino','Masculino','Masculino',
+             'Femenino','Femenino','Femenino','Femenino'],
+    'Grupo_Edad': ['16–29','30–44','45–59','60+']*2,
+    'Prop_SE': [0.142, 0.133, 0.108, 0.093,
+                0.145, 0.137, 0.117, 0.125]
+})
+prov = pd.DataFrame({
+    'Provincia': [
+        'Ciudad Autónoma de Buenos Aires','Buenos Aires','Catamarca','Chaco','Chubut','Córdoba',
+        'Corrientes','Entre Ríos','Formosa','Jujuy','La Pampa','La Rioja','Mendoza','Misiones',
+        'Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz','Santa Fe',
+        'Santiago del Estero','Tierra del Fuego','Tucumán'
+    ],
+    'Poblacion': [
+        3121707,17523996,429562,1129606,592621,3840905,
+        1212696,1425578,607419,811611,361859,383865,2043540,1278873,
+        710814,750768,1440672,822853,542069,337226,3544908,
+        1060906,185732,1731820
+    ]
+})
+prov['Prop_Prov'] = prov['Poblacion'] / prov['Poblacion'].sum()
+p = poblacion.assign(key=1).merge(prov.assign(key=1), on='key').drop(columns='key')
+p['Prop_Poblacion'] = p['Prop_SE'] * p['Prop_Prov']
+p = p[['Sexo','Grupo_Edad','Provincia','Prop_Poblacion']]
+muestra = (
+    df.groupby(['Ventana','Sexo','Grupo_Edad','Estrato'])
+      .size()
+      .reset_index(name='N_muestra')
+)
+muestra['Prop_Muestra'] = muestra.groupby('Ventana')['N_muestra'].transform(lambda x: x / x.sum())
+ponderacion = pd.merge(
+    muestra,
+    p,
+    left_on=['Sexo','Grupo_Edad','Estrato'],
+    right_on=['Sexo','Grupo_Edad','Provincia'],
+    how='left'
+)
+ponderacion['Peso'] = ponderacion['Prop_Poblacion'] / ponderacion['Prop_Muestra']
+df = df.merge(
+    ponderacion[['Ventana','Sexo','Grupo_Edad','Estrato','Peso']],
+    on=['Ventana','Sexo','Grupo_Edad','Estrato'],
+    how='left'
+)
+df
 
-#%%
-#Sexto paso: Estadísticas descriptivas básicas
-df.drop(columns=['ID', 'Fecha']).describe()
-media_ponderada = np.average(df['Imagen_Candidato'], weights = df['Peso']) #sacar media ponderada
-print("Media ponderada de la imagen del candidato:", media_ponderada)
-print("Media de la imagen del candidato sin ponderar:", df['Imagen_Candidato'].mean()) #imagen del candidato sin ponderar
