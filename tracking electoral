@@ -150,6 +150,6 @@ df_hombres = df[df['Sexo'] == 'Masculino'] #creacion de df filtrado por hombres 
 #%%
 #Sexto paso: Estadísticas descriptivas básicas
 df.drop(columns=['ID', 'Fecha']).describe()
-media_ponderada = np.average(df['Imagen_Candidato'], weights = df['peso_post']) #sacar media ponderada
+media_ponderada = np.average(df['Imagen_Candidato'], weights = df['Peso']) #sacar media ponderada
 print("Media ponderada de la imagen del candidato:", media_ponderada)
 print("Media de la imagen del candidato sin ponderar:", df['Imagen_Candidato'].mean()) #imagen del candidato sin ponderar
